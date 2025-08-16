@@ -30,12 +30,11 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     #linkList {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  padding: 2rem;
-}
-
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      padding: 2rem;
+    }
     .card {
       background: white;
       padding: 1.2rem;
@@ -161,22 +160,45 @@
   </div>
 
   <script>
-    let links = JSON.parse(localStorage.getItem("links")) || [];
-    const deletePasscode = "unicom123"; // change this to your desired passcode
+    // JSONBin Setup
+    const BIN_ID = "6897373cd0ea881f405510b9"; 
+    const API_KEY = "$2a$10$eU9SUkbuqHkN0TG9MSHGH.LZP692P8LYuepLuL56bSXVE6O/2VAmq";  // 🔹 Replace with your API Key
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
-    const linkList = document.getElementById("linkList");
-    const searchBar = document.getElementById("searchBar");
-    const addLinkBtn = document.getElementById("addLinkBtn");
-    const modal = document.getElementById("modal");
-    const closeModal = document.getElementById("closeModal");
-    const saveLink = document.getElementById("saveLink");
 
-    const titleInput = document.getElementById("titleInput");
-    const urlInput = document.getElementById("urlInput");
-    const descInput = document.getElementById("descInput");
-    const tagsInput = document.getElementById("tagsInput");
+    let links = [];
+    const deletePasscode = "unicom123"; // change if needed
+
+    async function fetchLinks() {
+      try {
+        const res = await fetch(API_URL + "/latest", {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await res.json();
+        links = data.record.links || [];
+        renderLinks();
+      } catch (err) {
+        console.error("Error fetching links:", err);
+      }
+    }
+
+    async function saveLinks() {
+      try {
+        await fetch(API_URL, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Master-Key": API_KEY
+          },
+          body: JSON.stringify({ links })
+        });
+      } catch (err) {
+        console.error("Error saving links:", err);
+      }
+    }
 
     function renderLinks(filter = "") {
+      const linkList = document.getElementById("linkList");
       linkList.innerHTML = "";
       let filteredLinks = links.filter(link =>
         link.title.toLowerCase().includes(filter.toLowerCase()) ||
@@ -197,12 +219,12 @@
       });
     }
 
-    function deleteLink(index) {
+    async function deleteLink(index) {
       const enteredCode = prompt("Enter delete code:");
       if (enteredCode === deletePasscode) {
         if (confirm("Are you sure you want to delete this link?")) {
           links.splice(index, 1);
-          localStorage.setItem("links", JSON.stringify(links));
+          await saveLinks();
           renderLinks();
         }
       } else {
@@ -210,40 +232,49 @@
       }
     }
 
-    saveLink.addEventListener("click", () => {
-      const newLink = {
-        title: titleInput.value.trim(),
-        url: urlInput.value.trim(),
-        description: descInput.value.trim(),
-        tags: tagsInput.value.split(",").map(tag => tag.trim()).filter(t => t)
-      };
+    document.getElementById("saveLink").addEventListener("click", async () => {
+      const titleInput = document.getElementById("titleInput").value.trim();
+      const urlInput = document.getElementById("urlInput").value.trim();
+      const descInput = document.getElementById("descInput").value.trim();
+      const tagsInput = document.getElementById("tagsInput").value.split(",").map(tag => tag.trim()).filter(t => t);
 
-      if (!newLink.title || !newLink.url) {
+      if (!titleInput || !urlInput) {
         alert("Title and URL are required!");
         return;
       }
 
-      links.push(newLink);
-      localStorage.setItem("links", JSON.stringify(links));
+      links.push({
+        title: titleInput,
+        url: urlInput,
+        description: descInput,
+        tags: tagsInput
+      });
+
+      await saveLinks();
       renderLinks();
-      modal.style.display = "none";
-      titleInput.value = "";
-      urlInput.value = "";
-      descInput.value = "";
-      tagsInput.value = "";
+
+      // Close modal & reset
+      document.getElementById("modal").style.display = "none";
+      document.getElementById("titleInput").value = "";
+      document.getElementById("urlInput").value = "";
+      document.getElementById("descInput").value = "";
+      document.getElementById("tagsInput").value = "";
     });
 
-    searchBar.addEventListener("input", (e) => {
+    document.getElementById("searchBar").addEventListener("input", (e) => {
       renderLinks(e.target.value);
     });
 
-    addLinkBtn.onclick = () => modal.style.display = "block";
-    closeModal.onclick = () => modal.style.display = "none";
+    document.getElementById("addLinkBtn").onclick = () => document.getElementById("modal").style.display = "block";
+    document.getElementById("closeModal").onclick = () => document.getElementById("modal").style.display = "none";
     window.onclick = (event) => {
-      if (event.target === modal) modal.style.display = "none";
+      if (event.target === document.getElementById("modal")) {
+        document.getElementById("modal").style.display = "none";
+      }
     };
 
-    renderLinks();
+    // Initial load
+    fetchLinks();
   </script>
 </body>
 </html>

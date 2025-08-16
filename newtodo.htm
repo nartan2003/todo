@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo List with JSONBin</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    h1 { text-align: center; }
+    input, button { padding: 10px; margin: 5px 0; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+    li.completed { text-decoration: line-through; color: gray; }
+    .report { margin-top: 20px; padding: 15px; background: #eef6ff; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✅ Todo List</h1>
+    <input type="text" id="taskInput" placeholder="Enter new task...">
+    <button onclick="addTask()">Add Task</button>
+
+    <ul id="taskList"></ul>
+
+    <div class="report">
+      <h3>📅 Daily Report</h3>
+      <p id="reportText">Loading...</p>
+    </div>
+  </div>
+
+  <script>
+    const BIN_ID = "68a0c56a43b1c97be91fe469";
+    const API_KEY = "$2a$10$sMauWMG3pk98tBcaXGY.leQGNFYbYfhXgM7AIuNM9fjDQkeJwXHUW";
+    const BASE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    async function fetchTasks() {
+      try {
+        const res = await fetch(BASE_URL, {
+          headers: { 'X-Master-Key': API_KEY }
+        });
+        const data = await res.json();
+        return data.record.tasks || [];
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    async function saveTasks(tasks) {
+      try {
+        await fetch(BASE_URL, {
+          method: "PUT",
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify({ tasks })
+        });
+      } catch (e) {
+        console.error("Error saving tasks", e);
+      }
+    }
+
+    function renderTasks(tasks) {
+      const list = document.getElementById("taskList");
+      list.innerHTML = "";
+      tasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        li.className = task.completed ? "completed" : "";
+        li.innerHTML = `
+          <span onclick="toggleTask(${index})">${task.text}</span>
+          <button onclick="deleteTask(${index})">❌</button>
+        `;
+        list.appendChild(li);
+      });
+      generateReport(tasks);
+    }
+
+    async function addTask() {
+      const input = document.getElementById("taskInput");
+      if (!input.value.trim()) return;
+      let tasks = await fetchTasks();
+      tasks.push({ text: input.value, completed: false });
+      await saveTasks(tasks);
+      renderTasks(tasks);
+      input.value = "";
+    }
+
+    async function toggleTask(index) {
+      let tasks = await fetchTasks();
+      tasks[index].completed = !tasks[index].completed;
+      await saveTasks(tasks);
+      renderTasks(tasks);
+    }
+
+    async function deleteTask(index) {
+      let tasks = await fetchTasks();
+      tasks.splice(index, 1);
+      await saveTasks(tasks);
+      renderTasks(tasks);
+    }
+
+    function generateReport(tasks) {
+      let completed = tasks.filter(t => t.completed).length;
+      let pending = tasks.length - completed;
+      document.getElementById("reportText").innerText = `Completed: ${completed}, Pending: ${pending}`;
+    }
+
+    (async () => {
+      const tasks = await fetchTasks();
+      renderTasks(tasks);
+    })();
+  </script>
+</body>
+</html>
